@@ -7,6 +7,8 @@ export default defineSchema({
     description: v.string(),
     price: v.number(),
     image: v.optional(v.string()),
+    category: v.optional(v.string()),
+    isNew: v.optional(v.boolean()),
   }),
   
   cartItems: defineTable({
