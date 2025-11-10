@@ -4,12 +4,14 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTr
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ShoppingCart, Trash2, X } from "lucide-react";
+import { ShoppingCart, Trash2, Loader2, CheckCircle2, XCircle, Clock } from "lucide-react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { useSessionId } from "@/hooks/useSessionId";
 import { Id } from "../../convex/_generated/dataModel";
 import Image from "next/image";
+import { toast } from "sonner";
+import { useState, useEffect } from "react";
 
 export function ShoppingCartSheet() {
   const sessionId = useSessionId();
@@ -17,6 +19,12 @@ export function ShoppingCartSheet() {
   const updateQuantity = useMutation(api.cart.updateCartItemQuantity);
   const removeItem = useMutation(api.cart.removeFromCart);
   const clearCart = useMutation(api.cart.clearCart);
+  const createPendingOrder = useMutation(api.orders.createPendingOrder);
+  const pendingOrders = useQuery(api.orders.getPendingOrders, sessionId ? { sessionId } : "skip");
+  
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
+  const [isOpen, setIsOpen] = useState(false);
 
   const totalItems = cartItems?.reduce((sum, item) => sum + item.quantity, 0) || 0;
   const totalPrice = cartItems?.reduce((sum, item) => {
@@ -25,6 +33,34 @@ export function ShoppingCartSheet() {
     }
     return sum;
   }, 0) || 0;
+
+  // Monitorear órdenes pendientes
+  useEffect(() => {
+    if (pendingOrders && pendingOrders.length > 0 && currentOrderId) {
+      const currentOrder = pendingOrders.find(o => o.orderId === currentOrderId);
+      
+      if (currentOrder) {
+        if (currentOrder.status === "confirmed") {
+          toast.success("¡Pedido confirmado y enviado!", {
+            description: `Tu pedido está en camino. Orden: ${currentOrderId}`,
+            duration: 5000,
+            icon: <CheckCircle2 className="h-5 w-5" />,
+          });
+          setIsProcessing(false);
+          setCurrentOrderId(null);
+          setIsOpen(false);
+        } else if (currentOrder.status === "rejected") {
+          toast.error("Stock insuficiente", {
+            description: "El almacén no tiene stock disponible para algunos productos",
+            duration: 5000,
+            icon: <XCircle className="h-5 w-5" />,
+          });
+          setIsProcessing(false);
+          setCurrentOrderId(null);
+        }
+      }
+    }
+  }, [pendingOrders, currentOrderId]);
 
   const handleQuantityChange = async (itemId: Id<"cartItems">, newQuantity: number) => {
     await updateQuantity({ itemId, quantity: newQuantity });
@@ -37,13 +73,79 @@ export function ShoppingCartSheet() {
   const handleClearCart = async () => {
     if (sessionId && cartItems && cartItems.length > 0) {
       await clearCart({ sessionId });
+      toast.success("Bolsa vaciada");
+    }
+  };
+
+  const handleProcessOrder = async () => {
+    if (!sessionId || !cartItems || cartItems.length === 0) {
+      toast.error("El carrito está vacío");
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      // 1. Crear orden pendiente en Convex
+      const orderData = await createPendingOrder({ sessionId });
+      setCurrentOrderId(orderData.orderId);
+
+      console.log("📦 Orden pendiente creada:", orderData.orderId);
+
+      // 2. Llamar al intermediario (externo) - AQUÍ PONES LA URL DE TU INTERMEDIARIO
+      const INTERMEDIARIO_URL = process.env.NEXT_PUBLIC_INTERMEDIARIO_URL || "https://tu-intermediario.com/api/verificar-stock";
+      
+      // 3. URL del webhook donde el almacén nos notificará
+      const webhookUrl = `${window.location.origin}/api/webhook/almacen-respuesta`;
+
+      toast.info("Consultando stock...", {
+        description: "Esperando respuesta del almacén",
+        duration: 10000,
+        icon: <Clock className="h-5 w-5 animate-pulse" />,
+      });
+
+      // Llamar al intermediario
+      const response = await fetch(INTERMEDIARIO_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          orderId: orderData.orderId,
+          sessionId: sessionId,
+          products: orderData.products.map(p => ({
+            productId: p.productId,
+            quantity: p.quantity
+          })),
+          totalAmount: orderData.totalAmount,
+          webhookUrl: webhookUrl, // Le decimos al intermediario dónde notificarnos
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Error al contactar al intermediario");
+      }
+
+      const result = await response.json();
+      console.log("📞 Respuesta del intermediario:", result);
+
+      // El intermediario procesará y el almacén nos notificará vía webhook
+      // El useEffect monitoreará el cambio de estado
+
+    } catch (error) {
+      console.error("❌ Error al procesar pedido:", error);
+      toast.error("Error al procesar el pedido", {
+        description: "No se pudo contactar al intermediario. Intenta nuevamente.",
+      });
+      setIsProcessing(false);
+      setCurrentOrderId(null);
     }
   };
 
   return (
-    <Sheet>
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
       <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative cursor-pointer">
+        <Button variant="ghost" size="icon" className="relative cursor-pointer" onClick={() => setIsOpen(true)}>
           <ShoppingCart className="h-5 w-5" />
           {totalItems > 0 && (
             <Badge 
@@ -138,13 +240,26 @@ export function ShoppingCartSheet() {
                 </div>
 
                 <div className="space-y-2">
-                  <Button className="w-full h-12 bg-black text-white hover:bg-neutral-800 rounded-full text-base cursor-pointer" size="lg">
-                    Tramitar pedido
+                  <Button 
+                    className="w-full h-12 bg-black text-white hover:bg-neutral-800 rounded-full text-base cursor-pointer" 
+                    size="lg"
+                    onClick={handleProcessOrder}
+                    disabled={isProcessing}
+                  >
+                    {isProcessing ? (
+                      <>
+                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                        Consultando stock...
+                      </>
+                    ) : (
+                      "Tramitar pedido"
+                    )}
                   </Button>
                   <Button 
                     variant="ghost" 
                     className="w-full hover:bg-neutral-50 cursor-pointer"
                     onClick={handleClearCart}
+                    disabled={isProcessing}
                   >
                     Vaciar bolsa
                   </Button>
