@@ -10,10 +10,17 @@ export const getCartItems = query({
       .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
       .collect();
 
-    // Obtener los detalles de cada producto
+    // Obtener los detalles de cada producto y filtrar los que no existen
     const itemsWithProducts = await Promise.all(
       cartItems.map(async (item) => {
         const product = await ctx.db.get(item.productId);
+        
+        // Si el producto no existe, retornar null
+        if (!product) {
+          console.warn(`⚠️ Producto ${item.productId} no encontrado en carrito`);
+          return null;
+        }
+        
         return {
           ...item,
           product,
@@ -21,7 +28,8 @@ export const getCartItems = query({
       })
     );
 
-    return itemsWithProducts;
+    // Filtrar items nulos (productos que ya no existen)
+    return itemsWithProducts.filter((item) => item !== null);
   },
 });
 
@@ -96,5 +104,27 @@ export const clearCart = mutation({
     for (const item of cartItems) {
       await ctx.db.delete(item._id);
     }
+  },
+});
+
+// Limpiar items del carrito cuyos productos ya no existen
+export const cleanInvalidCartItems = mutation({
+  args: { sessionId: v.string() },
+  handler: async (ctx, args) => {
+    const cartItems = await ctx.db
+      .query("cartItems")
+      .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
+      .collect();
+
+    let deletedCount = 0;
+    for (const item of cartItems) {
+      const product = await ctx.db.get(item.productId);
+      if (!product) {
+        await ctx.db.delete(item._id);
+        deletedCount++;
+      }
+    }
+    
+    return { deletedCount };
   },
 });

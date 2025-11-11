@@ -4,6 +4,18 @@ import { api } from "../../../../../convex/_generated/api";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
+// Configurar CORS para permitir que el almacén nos llame
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*", // En producción, especifica el dominio del almacén
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+// Manejar preflight request (OPTIONS)
+export async function OPTIONS() {
+  return NextResponse.json({}, { headers: corsHeaders });
+}
+
 // Esta API recibe la respuesta del almacén cuando verifica el stock
 // El almacén llama a esta API después de que el intermediario le consulta
 export async function POST(request: NextRequest) {
@@ -37,7 +49,7 @@ export async function POST(request: NextRequest) {
           status: "confirmed",
           receivedAt: new Date().toISOString(),
         },
-      });
+      }, { headers: corsHeaders });
     } else {
       // El almacén confirmó que NO hay stock
       return NextResponse.json({
@@ -50,7 +62,7 @@ export async function POST(request: NextRequest) {
           reason: message || "Stock insuficiente",
           receivedAt: new Date().toISOString(),
         },
-      });
+      }, { headers: corsHeaders });
     }
   } catch (error) {
     console.error("❌ Error al recibir respuesta del almacén:", error);
@@ -59,7 +71,7 @@ export async function POST(request: NextRequest) {
         success: false,
         message: "Error al procesar la respuesta del almacén",
       },
-      { status: 500 }
+      { status: 500, headers: corsHeaders }
     );
   }
 }

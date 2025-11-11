@@ -41,28 +41,42 @@ El usuario hace clic en "Tramitar pedido" en el carrito.
 
 ### 2. Llamada al Intermediario (Externo)
 
-El frontend llama al intermediario con la información del pedido.
+El frontend llama a **nuestra API intermediaria** que actúa como proxy para evitar problemas de CORS.
 
-**Endpoint del Intermediario (externo):**
+**Endpoint de nuestra API (proxy):**
+```
+POST /api/intermediario/verificar-stock
+```
+
+**Esta API luego llama al intermediario externo:**
 ```
 POST https://tu-intermediario.com/api/verificar-stock
 ```
 
+**Ventajas de usar nuestra API como proxy:**
+- ✅ Evita problemas de CORS
+- ✅ Permite agregar lógica de validación
+- ✅ Facilita logging y debugging
+- ✅ Oculta credenciales sensibles del cliente
+
 **Payload que enviamos:**
+
+El intermediario espera recibir **un producto a la vez**. Si hay múltiples productos, hacemos múltiples llamadas.
+
+**Formato por cada producto:**
 ```json
 {
-  "orderId": "ORD-1731267890-abc123",
-  "sessionId": "session_xxx",
-  "products": [
-    {
-      "productId": "k17...",
-      "quantity": 2
-    }
-  ],
-  "totalAmount": 3999.98,
-  "webhookUrl": "https://tu-dominio.com/api/webhook/almacen-respuesta"
+  "product_id": "k17...",
+  "quantity": 2
 }
 ```
+
+**Ejemplo con múltiples productos:**
+- Producto 1: `{ "product_id": "k17abc", "quantity": 2 }`
+- Producto 2: `{ "product_id": "k18def", "quantity": 1 }`
+- Se hacen 2 llamadas separadas al intermediario
+
+**Nota:** Solo se envía `product_id` y `quantity` por producto.
 
 ### 3. Intermediario consulta al Almacén
 
@@ -143,11 +157,62 @@ Cuando recibimos la notificación del almacén:
 
 ## 🔌 APIs Implementadas (Nuestro lado)
 
-### 1. Webhook para recibir respuesta del almacén
+### 1. API Proxy para llamar al intermediario
+
+**Ruta:** `/api/intermediario/verificar-stock`  
+**Método:** `POST`  
+**Descripción:** Proxy que llama al intermediario externo (evita CORS)
+
+**Request del frontend:**
+```json
+{
+  "orderId": "string",
+  "sessionId": "string",
+  "products": Array<{ productId: string, quantity: number }>,
+  "totalAmount": number,
+  "webhookUrl": "string"
+}
+```
+
+**Acciones:**
+1. Valida que `NEXT_PUBLIC_INTERMEDIARIO_URL` esté configurada
+2. **Itera sobre cada producto del carrito**
+3. Por cada producto, hace una llamada separada al intermediario
+4. Envía solo `product_id` y `quantity`
+5. Retorna array con todas las respuestas
+
+**Payload enviado al intermediario por producto:**
+```json
+{
+  "product_id": "string",
+  "quantity": number
+}
+```
+
+**Importante:** 
+- Una llamada por producto
+- No se envía información de orden, sesión o webhook
+- El intermediario debe identificar internamente cómo responder
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Solicitud enviada al intermediario correctamente",
+  "data": { ...respuesta del intermediario... }
+}
+```
+
+### 2. Webhook para recibir respuesta del almacén
 
 **Ruta:** `/api/webhook/almacen-respuesta`  
 **Método:** `POST`  
 **Descripción:** Recibe la confirmación o rechazo del almacén
+
+**Configuración CORS:**
+- ✅ Incluye headers CORS para permitir llamadas externas
+- ✅ Soporta preflight requests (OPTIONS)
+- ⚠️ En producción, especifica el dominio del almacén en `Access-Control-Allow-Origin`
 
 **Request esperado del almacén:**
 ```json
@@ -416,28 +481,25 @@ Configurada en `NEXT_PUBLIC_INTERMEDIARIO_URL`
 **Método:** `POST`  
 **Content-Type:** `application/json`
 
-**Body que enviamos:**
+**Body que enviamos al intermediario:**
+
+**Por cada producto en el carrito:**
 ```json
 {
-  "orderId": "ORD-1731267890-abc123",
-  "sessionId": "session_xxx",
-  "products": [
-    {
-      "productId": "k17...",
-      "quantity": 2
-    }
-  ],
-  "totalAmount": 3999.98,
-  "webhookUrl": "https://tu-dominio.com/api/webhook/almacen-respuesta"
+  "product_id": "1",
+  "quantity": 2
 }
 ```
 
 **Campos:**
-- `orderId`: ID único de la orden generado por nosotros
-- `sessionId`: ID de sesión del usuario
-- `products`: Array con solo `productId` y `quantity`
-- `totalAmount`: Monto total del pedido
-- `webhookUrl`: URL donde el almacén debe notificarnos el resultado
+- `product_id`: ID externo del producto (externalId) que el intermediario/almacén reconoce
+- `quantity`: Cantidad solicitada
+
+**Importante:** 
+- Se hace una llamada HTTP separada por cada producto
+- El `product_id` enviado es el `externalId` del producto (ej: "1", "2", "3")
+- Nuestro sistema mantiene un mapeo entre el ID interno de Convex y el `externalId`
+- Los productos deben tener configurado el campo `externalId` en la base de datos
 
 ---
 

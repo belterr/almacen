@@ -9,6 +9,7 @@ export default defineSchema({
     image: v.optional(v.string()),
     category: v.optional(v.string()),
     isNew: v.optional(v.boolean()),
+    externalId: v.optional(v.string()), // ID del producto en el sistema del intermediario/almacén
   }),
   
   cartItems: defineTable({
@@ -24,7 +25,7 @@ export default defineSchema({
     orderId: v.string(),
     products: v.array(v.object({
       productId: v.string(),
-      productName: v.string(),
+      externalId: v.string(), // ID del producto en el sistema del intermediario
       quantity: v.number(),
       price: v.number(),
     })),

@@ -22,11 +22,16 @@ export const createPendingOrder = mutation({
       cartItems.map(async (item) => {
         const product = await ctx.db.get(item.productId);
         if (!product) {
-          throw new Error(`Producto ${item.productId} no encontrado`);
+          console.error(`❌ Producto no encontrado: ${item.productId}`);
+          throw new Error(`Producto ${item.productId} no encontrado. Por favor, actualiza tu carrito.`);
+        }
+        if (!product.externalId) {
+          console.error(`❌ Producto sin externalId: ${item.productId}`);
+          throw new Error(`Producto ${product.name} no tiene ID externo configurado.`);
         }
         return {
           productId: item.productId,
-          productName: product.name,
+          externalId: product.externalId, // ID que usa el intermediario
           quantity: item.quantity,
           price: product.price,
         };

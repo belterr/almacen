@@ -19,12 +19,20 @@ export function ShoppingCartSheet() {
   const updateQuantity = useMutation(api.cart.updateCartItemQuantity);
   const removeItem = useMutation(api.cart.removeFromCart);
   const clearCart = useMutation(api.cart.clearCart);
+  // const cleanInvalidCartItems = useMutation(api.cart.cleanInvalidCartItems);
   const createPendingOrder = useMutation(api.orders.createPendingOrder);
   const pendingOrders = useQuery(api.orders.getPendingOrders, sessionId ? { sessionId } : "skip");
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+
+  // Limpiar items inválidos al cargar (descomentar después de ejecutar npx convex dev)
+  // useEffect(() => {
+  //   if (sessionId) {
+  //     cleanInvalidCartItems({ sessionId }).catch(console.error);
+  //   }
+  // }, [sessionId, cleanInvalidCartItems]);
 
   const totalItems = cartItems?.reduce((sum, item) => sum + item.quantity, 0) || 0;
   const totalPrice = cartItems?.reduce((sum, item) => {
@@ -92,10 +100,7 @@ export function ShoppingCartSheet() {
 
       console.log("📦 Orden pendiente creada:", orderData.orderId);
 
-      // 2. Llamar al intermediario (externo) - AQUÍ PONES LA URL DE TU INTERMEDIARIO
-      const INTERMEDIARIO_URL = process.env.NEXT_PUBLIC_INTERMEDIARIO_URL || "https://tu-intermediario.com/api/verificar-stock";
-      
-      // 3. URL del webhook donde el almacén nos notificará
+      // 2. URL del webhook donde el almacén nos notificará
       const webhookUrl = `${window.location.origin}/api/webhook/almacen-respuesta`;
 
       toast.info("Consultando stock...", {
@@ -104,8 +109,9 @@ export function ShoppingCartSheet() {
         icon: <Clock className="h-5 w-5 animate-pulse" />,
       });
 
-      // Llamar al intermediario
-      const response = await fetch(INTERMEDIARIO_URL, {
+      // 3. Llamar a nuestra API intermediaria (que evita problemas de CORS)
+      // Esta API hará el fetch al intermediario externo desde el servidor
+      const response = await fetch("/api/intermediario/verificar-stock", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -115,15 +121,17 @@ export function ShoppingCartSheet() {
           sessionId: sessionId,
           products: orderData.products.map(p => ({
             productId: p.productId,
+            externalId: p.externalId, // ID del intermediario
             quantity: p.quantity
           })),
           totalAmount: orderData.totalAmount,
-          webhookUrl: webhookUrl, // Le decimos al intermediario dónde notificarnos
+          webhookUrl: webhookUrl,
         }),
       });
 
       if (!response.ok) {
-        throw new Error("Error al contactar al intermediario");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Error al contactar al intermediario");
       }
 
       const result = await response.json();
