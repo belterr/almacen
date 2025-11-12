@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../../../convex/_generated/api";
+import type { AlmacenWebhookRequest } from "@/types/api";
 
 const convex = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!);
 
@@ -20,7 +21,8 @@ export async function OPTIONS() {
 // El almacén llama a esta API después de que el intermediario le consulta
 export async function POST(request: NextRequest) {
   try {
-    const { orderId, sessionId, hasStock, products, message } = await request.json();
+    const body = await request.json() as AlmacenWebhookRequest;
+    const { orderId, sessionId, hasStock, products, message } = body;
 
     console.log("✅ [ALMACÉN → NOSOTROS] Respuesta recibida del almacén");
     console.log("Order ID:", orderId);

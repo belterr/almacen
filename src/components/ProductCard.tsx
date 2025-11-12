@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ShoppingCart } from "lucide-react";
 import Image from "next/image";
+import { Id } from "../../convex/_generated/dataModel";
 
 interface ProductCardProps {
-  id: string;
+  id: Id<"products">;
   name: string;
   description: string;
   price: number;

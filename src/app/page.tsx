@@ -6,6 +6,7 @@ import { FilterSidebar } from "@/components/FilterSidebar";
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
 import { useSessionId } from "@/hooks/useSessionId";
 import { Package, SlidersHorizontal, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
@@ -33,20 +34,20 @@ export default function Home() {
     return products.filter(p => p.category === selectedCategory);
   }, [products, selectedCategory]);
 
-  const handleAddToCart = async (productId: string, productName: string) => {
+  const handleAddToCart = async (productId: Id<"products">, productName: string) => {
     if (!sessionId) return;
     
     try {
       await addToCart({
         sessionId,
-        productId: productId as any,
+        productId: productId,
         quantity: 1,
       });
       
       toast.success("¡Producto agregado!", {
         description: `${productName} se agregó a tu carrito`,
       });
-    } catch (error) {
+    } catch {
       toast.error("Error", {
         description: "No se pudo agregar el producto al carrito",
       });
@@ -59,7 +60,7 @@ export default function Home() {
       toast.success("¡Productos agregados!", {
         description: "Se agregaron productos de ejemplo a la tienda",
       });
-    } catch (error) {
+    } catch {
       toast.error("Error", {
         description: "No se pudieron agregar los productos de ejemplo",
       });

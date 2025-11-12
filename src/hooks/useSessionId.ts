@@ -1,22 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export function useSessionId() {
-  const [sessionId, setSessionId] = useState<string>("");
+  const [sessionId] = useState<string>(() => {
+    // Esta función solo se ejecuta una vez al montar el componente
+    if (typeof window === "undefined") {
+      return "";
+    }
 
-  useEffect(() => {
     // Intentar obtener sessionId de localStorage
     let id = localStorage.getItem("cartSessionId");
     
     if (!id) {
       // Generar un nuevo sessionId
-      id = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      id = `session_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       localStorage.setItem("cartSessionId", id);
     }
     
-    setSessionId(id);
-  }, []);
+    return id;
+  });
 
   return sessionId;
 }

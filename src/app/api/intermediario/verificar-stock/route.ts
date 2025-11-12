@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { VerificarStockRequest } from "@/types/api";
 
 // Esta API hace de proxy para llamar al intermediario externo
 // Evita problemas de CORS al hacer la llamada desde el servidor
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { orderId, sessionId, products, totalAmount, webhookUrl } = body;
+    const body = await request.json() as VerificarStockRequest;
+    const { orderId, products } = body;
 
     console.log("📞 [NOSOTROS → INTERMEDIARIO] Enviando solicitud de verificación de stock");
     console.log("Order ID:", orderId);
