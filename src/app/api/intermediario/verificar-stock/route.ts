@@ -34,6 +34,8 @@ export async function POST(request: NextRequest) {
       const intermediarioPayload = {
         product_id: product.externalId, // Usar el ID externo del intermediario
         quantity: product.quantity,
+        orderId: orderId,
+        sessionId: body.sessionId,
       };
 
       console.log("📤 Payload enviado al intermediario:", JSON.stringify(intermediarioPayload, null, 2));
