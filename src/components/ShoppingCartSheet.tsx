@@ -21,11 +21,16 @@ export function ShoppingCartSheet() {
   const clearCart = useMutation(api.cart.clearCart);
   // const cleanInvalidCartItems = useMutation(api.cart.cleanInvalidCartItems);
   const createPendingOrder = useMutation(api.orders.createPendingOrder);
-  const pendingOrders = useQuery(api.orders.getPendingOrders, sessionId ? { sessionId } : "skip");
   
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentOrderId, setCurrentOrderId] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  
+  // Monitorear el estado de la orden actual específicamente
+  const currentOrder = useQuery(
+    api.orders.getOrderStatus, 
+    currentOrderId ? { orderId: currentOrderId } : "skip"
+  );
 
   // Limpiar items inválidos al cargar (descomentar después de ejecutar npx convex dev)
   // useEffect(() => {
@@ -44,31 +49,43 @@ export function ShoppingCartSheet() {
 
   // Monitorear órdenes pendientes
   useEffect(() => {
-    if (pendingOrders && pendingOrders.length > 0 && currentOrderId) {
-      const currentOrder = pendingOrders.find(o => o.orderId === currentOrderId);
-      
-      if (currentOrder) {
-        if (currentOrder.status === "confirmed") {
-          toast.success("¡Pedido confirmado y enviado!", {
-            description: `Tu pedido está en camino. Orden: ${currentOrderId}`,
-            duration: 5000,
-            icon: <CheckCircle2 className="h-5 w-5" />,
-          });
-          setIsProcessing(false);
-          setCurrentOrderId(null);
-          setIsOpen(false);
-        } else if (currentOrder.status === "rejected") {
-          toast.error("Stock insuficiente", {
-            description: "El almacén no tiene stock disponible para algunos productos",
-            duration: 5000,
-            icon: <XCircle className="h-5 w-5" />,
-          });
-          setIsProcessing(false);
-          setCurrentOrderId(null);
-        }
-      }
+    if (!currentOrderId) return;
+    
+    console.log("🔍 [useEffect] Monitoreando orden:", currentOrderId);
+    console.log("📦 [useEffect] Estado de la orden:", currentOrder);
+    
+    if (!currentOrder) {
+      console.log("⏳ [useEffect] Orden no encontrada aún, esperando...");
+      return;
     }
-  }, [pendingOrders, currentOrderId]);
+    
+    console.log("📊 [useEffect] Status:", currentOrder.status);
+    
+    if (currentOrder.status === "confirmed") {
+      console.log("✅ [useEffect] ORDEN CONFIRMADA - Mostrando toast");
+      
+      toast.success("¡Pedido confirmado y enviado!", {
+        description: `Tu pedido está en camino`,
+        duration: 6000,
+        icon: <CheckCircle2 className="h-5 w-5" />,
+      });
+      
+      setIsProcessing(false);
+      setCurrentOrderId(null);
+      setIsOpen(false);
+    } else if (currentOrder.status === "rejected") {
+      console.log("❌ [useEffect] ORDEN RECHAZADA - Mostrando toast");
+      
+      toast.error("Stock insuficiente", {
+        description: "El almacén no tiene stock disponible para algunos productos",
+        duration: 6000,
+        icon: <XCircle className="h-5 w-5" />,
+      });
+      
+      setIsProcessing(false);
+      setCurrentOrderId(null);
+    }
+  }, [currentOrder, currentOrderId]);
 
   const handleQuantityChange = async (itemId: Id<"cartItems">, newQuantity: number) => {
     await updateQuantity({ itemId, quantity: newQuantity });
