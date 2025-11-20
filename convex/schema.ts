@@ -31,6 +31,7 @@ export default defineSchema({
     })),
     totalAmount: v.number(),
     status: v.string(), // "pending", "confirmed", "rejected"
+    rejectionMessage: v.optional(v.string()), // Mensaje cuando es rechazado
     createdAt: v.number(),
   }).index("by_session", ["sessionId"])
     .index("by_orderId", ["orderId"])

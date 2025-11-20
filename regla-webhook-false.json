@@ -1,0 +1,5 @@
+{
+    "source": ["stock.get"],
+    "detail-type": ["stock.false"]
+  }
+  

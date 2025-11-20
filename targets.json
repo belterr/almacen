@@ -1,0 +1,8 @@
+[
+    {
+      "Id": "api-dest-1",
+      "Arn": "arn:aws:events:us-east-1:211125740019:api-destination/destino-webhook-almacen/96df1591-2bb4-4596-afc0-caa82ebeb4b2",
+      "RoleArn":"arn:aws:iam::211125740019:role/role-webhook-eventbridge"
+    }
+  ]
+  

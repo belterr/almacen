@@ -1,0 +1,13 @@
+{
+    "ApiKeyAuthParameters": {
+      "ApiKeyName": "x-api-key",
+      "ApiKeyValue": "dummy"
+    },
+    "InvocationHttpParameters": {
+      "HeaderParameters": [],
+      "QueryStringParameters": [],
+      "BodyParameters": []
+    }
+  }
+  
+  

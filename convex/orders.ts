@@ -71,6 +71,7 @@ export const updateOrderStatus = mutation({
   args: {
     orderId: v.string(),
     status: v.string(),
+    rejectionMessage: v.optional(v.string()), // Mensaje cuando es rechazado
   },
   handler: async (ctx, args) => {
     const order = await ctx.db
@@ -82,9 +83,19 @@ export const updateOrderStatus = mutation({
       throw new Error(`Orden ${args.orderId} no encontrada`);
     }
 
-    await ctx.db.patch(order._id, {
+    const updateData: {
+      status: string;
+      rejectionMessage?: string;
+    } = {
       status: args.status,
-    });
+    };
+    
+    // Si es rechazado y hay mensaje, guardarlo
+    if (args.status === "rejected" && args.rejectionMessage) {
+      updateData.rejectionMessage = args.rejectionMessage;
+    }
+
+    await ctx.db.patch(order._id, updateData);
 
     // Si la orden fue confirmada, limpiar el carrito
     if (args.status === "confirmed") {

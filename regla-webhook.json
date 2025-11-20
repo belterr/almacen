@@ -1,0 +1,5 @@
+{
+    "source": ["stock.update"],
+    "detail-type": ["stock.true", "stock.fail"]
+  }
+  

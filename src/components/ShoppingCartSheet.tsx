@@ -76,9 +76,13 @@ export function ShoppingCartSheet() {
     } else if (currentOrder.status === "rejected") {
       console.log("❌ [useEffect] ORDEN RECHAZADA - Mostrando toast");
       
+      const rejectionMessage = ("rejectionMessage" in currentOrder && currentOrder.rejectionMessage) 
+        ? currentOrder.rejectionMessage 
+        : "El almacén no tiene stock disponible para algunos productos";
+      
       toast.error("Stock insuficiente", {
-        description: "El almacén no tiene stock disponible para algunos productos",
-        duration: 6000,
+        description: rejectionMessage,
+        duration: 8000, // Más tiempo para leer el mensaje detallado
         icon: <XCircle className="h-5 w-5" />,
       });
       
@@ -118,8 +122,8 @@ export function ShoppingCartSheet() {
       console.log("📦 Orden pendiente creada:", orderData.orderId);
 
       // 2. URL del webhook donde el almacén nos notificará
-      const webhookUrl = `${window.location.origin}/api/webhook/almacen-respuesta`;
-
+      // const webhookUrl = `${window.location.origin}/api/webhook/almacen-respuesta`;
+      const webhookUrl =   "https://almacen-beryl.vercel.app/api/webhook/almacen-respuesta";
       toast.info("Consultando stock...", {
         description: "Esperando respuesta del almacén",
         duration: 10000,

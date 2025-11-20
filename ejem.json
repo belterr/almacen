@@ -1,0 +1,6 @@
+[{
+    "Source": "local.app",
+    "DetailType": "order.created",
+    "Detail": "{\"product_id\":\"3\",\"quantity\":10,\"orderId\":\"ORD-1763575458110-r4787qfn0\",\"sessionId\":\"session_1763507841790_oawu6fh\",\"totalAmount\":1624,\"webhookUrl\":\"https://e326615d44c5.ngrok-free.app/api/webhook/almacen-respuesta\"}",
+    "EventBusName": "bus-almacenamiento-hackathon"
+  }]
